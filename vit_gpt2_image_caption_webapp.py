@@ -11,7 +11,7 @@ web_app = fastapi.FastAPI()
 
 @web_app.post("/parse")
 async def parse(request: fastapi.Request):
-    predict_step = Function.lookup("vit-gpt2-image-captioning", "predict_step")
+    predict_step = Function.lookup("vit-gpt2-image-caption", "predict")
 
     form = await request.form()
     image = await form["image"].read()  # type: ignore
