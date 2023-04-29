@@ -48,7 +48,6 @@ def predict(image):
 @stub.local_entrypoint()
 def main():
     from pathlib import Path
-
     image_filepath = Path(__file__).parent / "sample.png"
     if image_filepath.exists():
         with open(image_filepath, "rb") as f:
