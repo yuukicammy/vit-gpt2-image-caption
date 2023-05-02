@@ -31,7 +31,7 @@ SHARED_ROOT = "/root/model_cache"
 
 
 @stub.cls(
-    gpu="any",
+    gpu="A10G",
     cpu=14,
     shared_volumes={SHARED_ROOT: modal.SharedVolume.from_name(config["shared_vol"])},
     retries=0,
@@ -120,7 +120,7 @@ class FineTune:
                 cache_root=SHARED_ROOT,
                 download_retries=config["download_retries"],
                 seed=config["seed"],
-                num_examples=10,
+                num_examples=320,
             ),
             data_collator=default_data_collator,
         )

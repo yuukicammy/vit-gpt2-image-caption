@@ -4,8 +4,8 @@ config_dict = {
     "shared_vol": "caption-vol",
     # For NN training
     "evaluation_strategy": "steps",  # ["no", "steps", "epoch"]
-    "batch_size_per_device": {"train": 4, "val": 4, "log": 2},
-    "steps": {"train": 10, "val": 5, "log": 1},
+    "batch_size_per_device": {"train": 32, "val": 32, "log": 32},
+    "steps": {"val": 50, "log": 50},
     "save_limits": 3,
     "seed": 42,
     "learaning_rate": 5e-5,
@@ -13,7 +13,7 @@ config_dict = {
     "log_dir": "image-caption-outputs",
     "ignore_pad_token_for_loss": True,
     "metric": "rouge",
-    "max_steps": 100,
+    "max_steps": 1000000,
     # For Hugging Face Dataset
     "dataset_path": "yuukicammy/red_caps",
     "download_retries": 5,
