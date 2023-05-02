@@ -9,7 +9,9 @@ from datasets.utils.file_utils import get_datasets_user_agent
 USER_AGENT = get_datasets_user_agent()
 
 
-def fetch_single_image(image_url: str, timeout: int = None, retries: int = 0):
+def download_image(image_url: str, timeout: int = None, retries: int = 0):
+    import numpy as np
+
     for _ in range(retries + 1):
         try:
             request = urllib.request.Request(

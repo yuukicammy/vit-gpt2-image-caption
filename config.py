@@ -13,12 +13,15 @@ config_dict = {
     "log_dir": "image-caption-outputs",
     "ignore_pad_token_for_loss": True,
     "metric": "rouge",
-    "max_steps": 10,
+    "max_steps": 100,
     # For Hugging Face Dataset
     "dataset_path": "yuukicammy/red_caps",
+    "download_retries": 5,
+    "dataloader_num_workers": 4,  # [1,4]
     # For Hugging Face Model
-    "vison_encoder_pretrained": "nlpconnect/vit-gpt2-image-captioning",
+    "image_processor_pretrained": "nlpconnect/vit-gpt2-image-captioning",
     "tokenizer_pretrained": "nlpconnect/vit-gpt2-image-captioning",
+    "encoder_decoder_pretrained": "nlpconnect/vit-gpt2-image-captioning",
     "max_target_length": 128,
 }
 
