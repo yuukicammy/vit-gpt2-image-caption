@@ -1,13 +1,13 @@
 import modal
-from config import config_dict as config
+from config import Config
 
-stub = modal.Stub(config["project_name"] + "-make-splited-dataset")
+stub = modal.Stub(Config.project_name + "-make-splited-dataset")
 SHARED_ROOT = "/root/model_cache"
 
 
 @stub.function(
     image=modal.Image.debian_slim().pip_install("datasets"),
-    shared_volumes={SHARED_ROOT: modal.SharedVolume.from_name(config["shared_vol"])},
+    shared_volumes={SHARED_ROOT: modal.SharedVolume.from_name(Config.shared_vol)},
     retries=3,
     cpu=14,
     secret=modal.Secret.from_name("huggingface-secret"),
@@ -35,10 +35,10 @@ def make_splited_dataset(
     )
     print(dataset)
     trainval_test = dataset.train_test_split(
-        test_size=0.2, seed=config["seed"], shuffle=True
+        test_size=0.2, seed=Config.seed, shuffle=True
     )
     train_valid = trainval_test["train"].train_test_split(
-        test_size=0.1, seed=config["seed"], shuffle=True
+        test_size=0.1, seed=Config.seed, shuffle=True
     )
     print(trainval_test)
     print(train_valid)

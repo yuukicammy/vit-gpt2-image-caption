@@ -1,17 +1,27 @@
-from config import config_dict as config
 import modal
-from module import CaptionTransformer
+import transformers
+from transformers import (
+    TrainingArguments,
+    TrainerState,
+    TrainerControl,
+)
+
 from redcaps_dataset import RedCapsDataset
+from config import Config
 
 docker_command = [
     "RUN apt-get update && apt-get install -y git",
     #    "RUN pip uninstall datasets",
+    # For using forked datasets
     "RUN git clone --branch add-fn-kwargs-to-iterable-map-and-filter https://github.com/yuukicammy/datasets.git",
     'RUN cd datasets && pip install -e ".[dev]"',
+    # For Git Large File Storage
+    "RUN curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash",
+    "RUN apt-get install git-lfs && git lfs install",
 ]
 
 stub = modal.Stub(
-    config["project_name"] + "-train",
+    Config.project_name + "-train",
     image=modal.Image.debian_slim()
     .pip_install(
         "Pillow",
@@ -21,6 +31,7 @@ stub = modal.Stub(
         "evaluate",
         "numpy",
         "nltk",
+        "jaxlib",
         "torch",
         "kornia",
         "rouge_score",
@@ -31,101 +42,91 @@ SHARED_ROOT = "/root/model_cache"
 
 
 @stub.cls(
-    gpu="A10G",
-    cpu=14,
-    shared_volumes={SHARED_ROOT: modal.SharedVolume.from_name(config["shared_vol"])},
+    gpu=modal.gpu.A10G(count=4),
+    #    cloud="gcp",
+    cpu=10,
+    shared_volumes={SHARED_ROOT: modal.SharedVolume.from_name(Config.shared_vol)},
     retries=0,
     secret=modal.Secret.from_name("huggingface-secret"),
-    timeout=86400,
     interactive=False,
+    timeout=8000,
 )
 class FineTune:
     def __enter__(self):
+        from pathlib import Path
         import evaluate
+        from transformers import VisionEncoderDecoderModel, AutoTokenizer
+        from torch.utils.tensorboard import SummaryWriter
 
-        self.metric = evaluate.load(config["metric"])
-        self.ignore_pad_token_for_loss = config["ignore_pad_token_for_loss"]
-        self.module = CaptionTransformer(
-            tokenizer_pretrained_path=config["tokenizer_pretrained"],
-            model_pretrained_path=config["encoder_decoder_pretrained"],
-            max_target_length=config["max_target_length"],
-            ignore_pad_token_for_loss=config["ignore_pad_token_for_loss"],
+        self.metric = evaluate.load(Config.metric)
+        self.ignore_pad_token_for_loss = Config.ignore_pad_token_for_loss
+
+        self.tokenizer = AutoTokenizer.from_pretrained(Config.tokenizer_pretrained)
+        self.tokenizer.pad_token = self.tokenizer.eos_token
+
+        self.model = VisionEncoderDecoderModel.from_pretrained(
+            Config.encoder_decoder_pretrained
         )
+        # update the model config
+        self.model.config.eos_token_id = self.tokenizer.eos_token_id
+        self.model.config.decoder_start_token_id = self.tokenizer.bos_token_id
+        self.model.config.pad_token_id = self.tokenizer.pad_token_id
+
+        self.output_dir = Path(SHARED_ROOT) / Config.log_dir
+        # self.tb_writer = SummaryWriter(self.output_dir)
+        # self.tb_writer.add_hparams(Config.train_args)
 
     @modal.method()
     def run(self):
-        import os
-        import time
-        import json
-        from pathlib import Path
-
         from transformers import default_data_collator
         from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
+        from config import Config
 
         print("start!")
-        output_dir = Path(SHARED_ROOT) / config["log_dir"]
-        # # os.makedirs(
-        # #     output_dir / "run" / f"{time.strftime('%b%d_%H_%M_%S')}_modal",
-        # #     exist_ok=True,
-        # # )
-        # with open(
-        #     output_dir / f"{time.strftime('%b%d_%H_%M_%S')}_config.json",
-        #     mode="w",
-        #     encoding="utf-8",
-        # ) as f:
-        #     json.dump(config, f)
 
         training_args = Seq2SeqTrainingArguments(
-            predict_with_generate=True,  # Whether to use generate to calculate generative metrics (ROUGE, BLEU).
-            evaluation_strategy=config[
-                "evaluation_strategy"
-            ],  # ["no", "epoch", "step"]
-            per_device_train_batch_size=config["batch_size_per_device"]["train"],
-            per_device_eval_batch_size=config["batch_size_per_device"]["val"],
-            output_dir=output_dir,
-            eval_steps=config["steps"]["val"],
-            logging_steps=config["steps"]["log"],
-            learning_rate=config["learaning_rate"],
-            logging_first_step=True,
-            seed=config["seed"],
-            save_total_limit=config["save_limits"],
-            max_steps=config["max_steps"],
-            # log_level="debug",
-            dataloader_num_workers=config["dataloader_num_workers"],
-            disable_tqdm=True,
-            push_to_hub=False,
+            output_dir=self.output_dir,
+            # hub_token=os.environ["HUGGINGFACE_TOKEN"],
+            **Config.train_args,
         )
         # instantiate trainer
-        trainer = Seq2SeqTrainer(
-            model=self.module.model,
-            tokenizer=self.module.tokenizer,
+        self.trainer = Seq2SeqTrainer(
+            model=self.model,
+            tokenizer=self.tokenizer,
             args=training_args,
             compute_metrics=self.compute_metrics,
             train_dataset=RedCapsDataset(
                 split="train",
-                dataset_path=config["dataset_path"],
-                image_processor_pretrained=config["image_processor_pretrained"],
-                tokenizer=self.module.tokenizer,
-                max_length=config["max_target_length"],
+                dataset_path=Config.dataset_path,
+                image_processor_pretrained=Config.image_processor_pretrained,
+                tokenizer=self.tokenizer,
+                max_length=Config.max_target_length,
                 cache_root=SHARED_ROOT,
-                download_retries=config["download_retries"],
-                seed=config["seed"],
+                download_retries=Config.download_retries,
+                seed=Config.seed,
             ),
             eval_dataset=RedCapsDataset(
                 split="val",
-                dataset_path=config["dataset_path"],
-                image_processor_pretrained=config["image_processor_pretrained"],
-                tokenizer=self.module.tokenizer,
-                max_length=config["max_target_length"],
+                dataset_path=Config.dataset_path,
+                image_processor_pretrained=Config.image_processor_pretrained,
+                tokenizer=self.tokenizer,
+                max_length=Config.max_target_length,
                 cache_root=SHARED_ROOT,
-                download_retries=config["download_retries"],
-                seed=config["seed"],
+                download_retries=Config.download_retries,
+                seed=Config.seed,
                 num_examples=320,
             ),
             data_collator=default_data_collator,
+            callbacks=[ImageCaptionTensorBoardCallback],
         )
         # breakpoint()
-        trainer.train()
+        self.trainer.train()
+
+    def decode(self, preds):
+        decoded_preds = self.tokenizer.batch_decode(preds, skip_special_tokens=True)
+        # simple post-processing
+        decoded_preds = [decoded_pred.strip() for decoded_pred in decoded_preds]
+        return decoded_preds
 
     def compute_metrics(self, eval_preds):
         # receive data as numpy
@@ -136,33 +137,50 @@ class FineTune:
             preds = preds[0]
         if self.ignore_pad_token_for_loss:
             # Replace -100 in the labels as we can't decode them.
-            labels = np.where(
-                labels != -100, labels, self.module.tokenizer.pad_token_id
-            )
-        decoded_preds = self.module.decode(preds)
-        decoded_labels = self.module.decode(labels)
+            labels = np.where(labels != -100, labels, self.tokenizer.pad_token_id)
+        decoded_preds = self.decode(preds)
+        decoded_labels = self.decode(labels)
         result = self.metric.compute(
             predictions=decoded_preds, references=decoded_labels, use_stemmer=True
         )
         result = {k: round(v * 100, 4) for k, v in result.items()}
         prediction_lens = [
-            np.count_nonzero(pred != self.module.tokenizer.pad_token_id)
-            for pred in preds
+            np.count_nonzero(pred != self.tokenizer.pad_token_id) for pred in preds
         ]
         result["gen_len"] = np.mean(prediction_lens)
         return result
 
-    @modal.method()
-    def test(self):
-        import os
 
-        os.system("cd datasets && pytest")
+class ImageCaptionTensorBoardCallback(transformers.integrations.TensorBoardCallback):
+    def on_log(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        model,
+        tokenizer,
+        eval_dataloader,
+    ):
+        import torch
+
+        with torch.no_grad():
+            input = next(iter(eval_dataloader))
+            loss, logits, labels = model(**input)
+
+        decoded_preds = tokenizer.batch_decode(logits, skip_special_tokens=True)
+        decoded_preds = [decoded_pred.strip() for decoded_pred in decoded_preds]
+        decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
+        decoded_labels = [decoded_label.strip() for decoded_label in decoded_labels]
+
+        self.tb_writer.add_embedding(
+            mat=logits,
+            metadata={"gt": decoded_preds, "pred": decoded_labels},
+            label_img=input["pixel_values"],
+            global_step=state.global_step,
+            tag="embedding",
+        )
 
 
 @stub.local_entrypoint()
 def main():
     FineTune().run.call()
-
-
-if __name__ == "__main__":
-    main()

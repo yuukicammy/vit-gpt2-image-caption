@@ -1,8 +1,5 @@
 import io
-import urllib
-import numpy as np
-from concurrent.futures import ThreadPoolExecutor
-from functools import partial
+from typing import List
 import PIL
 from datasets.utils.file_utils import get_datasets_user_agent
 
@@ -10,7 +7,7 @@ USER_AGENT = get_datasets_user_agent()
 
 
 def download_image(image_url: str, timeout: int = None, retries: int = 0):
-    import numpy as np
+    import urllib
 
     for _ in range(retries + 1):
         try:
@@ -30,15 +27,28 @@ def download_image(image_url: str, timeout: int = None, retries: int = 0):
     return image
 
 
-def fetch_images(batch, num_workers: int = 4, timeout: int = None, retries: int = 0):
-    if isinstance(batch["image_url"], str):
-        batch["image"] = fetch_single_image(batch["image_url"])
+def download_images(
+    image_urls: List[str], num_workers: int = 4, timeout: int = None, retries: int = 0
+):
+    from concurrent.futures import ThreadPoolExecutor
+    from functools import partial
+
+    images = None
+    if isinstance(image_urls, str):
+        images = download_image(image_urls)
     else:
         fetch_single_image_with_args = partial(
-            fetch_single_image, timeout=timeout, retries=retries
+            download_image, timeout=timeout, retries=retries
         )
         with ThreadPoolExecutor(max_workers=num_workers) as executor:
-            batch["image"] = list(
-                executor.map(fetch_single_image_with_args, batch["image_url"])
-            )
-    return batch
+            images = list(executor.map(fetch_single_image_with_args, image_urls))
+    return images
+
+
+class to_obj(object):
+    def __init__(self, d):
+        for k, v in d.items():
+            if isinstance(k, (list, tuple)):
+                setattr(self, k, [to_obj(x) if isinstance(x, dict) else x for x in v])
+            else:
+                setattr(self, k, to_obj(v) if isinstance(v, dict) else v)

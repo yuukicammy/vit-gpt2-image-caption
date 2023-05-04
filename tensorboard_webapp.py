@@ -1,17 +1,17 @@
 import modal
-from config import config_dict as config
+from config import Config
 
 SHARED_ROOT: str = "/root/model_cache"
 ONLY_LATEST_DIR: bool = True
 
-stub = modal.Stub(config["project_name"] + "-tfboard-webapp")
+stub = modal.Stub(Config.project_name + "-tfboard-webapp")
 
 
 @stub.function(
     image=modal.Image.debian_slim().pip_install(
         "tensorboard",
     ),
-    shared_volumes={SHARED_ROOT: modal.SharedVolume.from_name(config["shared_vol"])},
+    shared_volumes={SHARED_ROOT: modal.SharedVolume.from_name(Config.shared_vol)},
 )
 @modal.wsgi_app()
 def tensorboard_app():
@@ -19,7 +19,7 @@ def tensorboard_app():
     import tensorboard
     from pathlib import Path
 
-    tfboard_log_root = Path(SHARED_ROOT) / config["log_dir"] / "runs"
+    tfboard_log_root = Path(SHARED_ROOT) / Config.log_dir / "runs"
     tfboard_log_dir = tfboard_log_root
     if ONLY_LATEST_DIR:
         tfboard_log_dir = tfboard_log_root / search_latest_dir(tfboard_log_root)

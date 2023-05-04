@@ -32,6 +32,8 @@ class RedCapsDataset(Dataset):
             use_auth_token=os.environ["HUGGINGFACE_TOKEN_READ"],
             cache_dir=cache_root,
             split=split,
+            keep_in_memory=True,
+            save_infos=True,
         )
         self.download_retries = download_retries
         self.download_timeout = download_timeout
