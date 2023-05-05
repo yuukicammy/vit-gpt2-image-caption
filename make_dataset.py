@@ -1,5 +1,6 @@
 import modal
 from config import Config
+import utils
 
 stub = modal.Stub(Config.project_name + "-make-splited-dataset")
 SHARED_ROOT = "/root/model_cache"
@@ -65,8 +66,101 @@ def make_splited_dataset(
         print("message: " + e.message)
 
 
+@stub.function(
+    image=modal.Image.debian_slim().pip_install("Pillow", "datasets"),
+    shared_volumes={SHARED_ROOT: modal.SharedVolume().persist("red-caps-vol")},
+    retries=3,
+    cpu=1,
+    cloud="gcp",
+    secret=modal.Secret.from_name("huggingface-secret"),
+    timeout=86400,
+)
+def set_dataset_in_local(
+    dataset_path: str = "yuukicammy/red_caps",
+    dataset_name="5k-01",
+    save_path: str = "red_caps",
+    num_train: int = 3500,
+    num_val: int = 500,
+    num_test: int = 1000,
+    save_to_hub: bool = True,
+):
+    import os
+    from pathlib import Path
+    from datasets import load_dataset, Dataset, DatasetDict
+
+    cache_root = Path(SHARED_ROOT) / save_path / dataset_name
+    dataset = load_dataset(
+        dataset_path,
+        cache_dir=Path(SHARED_ROOT) / ".hf_cache",
+        num_proc=14,
+        use_auth_token=os.environ["HUGGINGFACE_TOKEN_READ"],
+    )
+
+    created_dataset = DatasetDict()
+    train_dict = {}
+    val_dict = {}
+    test_dict = {}
+
+    for split, num_examples in zip(
+        ["train", "val", "test"], [num_train, num_val, num_test]
+    ):
+        ds = dataset[split].shuffle(Config.seed)
+        cls_names = ds.info.features["subreddit"].names
+        for name in cls_names:
+            os.makedirs(
+                os.path.join(cache_root, "images", split, name),
+                exist_ok=True,
+            )
+        target_dict = (
+            train_dict
+            if split == "train"
+            else test_dict
+            if split == "test"
+            else val_dict
+        )
+        for k in ds.info.features.keys():
+            target_dict[k] = []
+        valid_count = 0
+        total_count = 0
+        while valid_count < num_examples:
+            item = ds[total_count]
+            total_count += 1
+            cls_name = cls_names[item["subreddit"]]
+            filepath = os.path.join(
+                cache_root,
+                "images",
+                split,
+                cls_name,
+                f"{item['image_id']}.jpg",
+            )
+            if not os.path.isfile(filepath):
+                image = utils.download_image(item["image_url"], timeout=300)
+                if image is None:
+                    total_count += 1
+                    continue
+                valid_count += 1
+                image = image.convert("RGB")
+                image.save(filepath)
+            else:
+                valid_count += 1
+            for k in target_dict.keys():
+                target_dict[k] += [item[k]]
+            print(f"Done {filepath}")
+            total_count += 1
+        created_dataset[split] = Dataset.from_dict(target_dict)
+    print(created_dataset)
+    created_dataset.save_to_disk(cache_root)
+    if save_to_hub:
+        created_dataset.push_to_hub(
+            dataset_path / dataset_name,
+            private=True,
+            token=os.environ["HUGGINGFACE_TOKEN"],
+        )
+
+
 @stub.local_entrypoint()
 def main():
-    make_splited_dataset.call(
-        push_hub_rep="yuukicammy/red_caps", save_disk_name="red_caps/yuukicammy"
-    )
+    # make_splited_dataset.call(
+    #     push_hub_rep="yuukicammy/red_caps", save_disk_name="red_caps/yuukicammy"
+    # )
+    set_dataset_in_local.call()
