@@ -1,6 +1,5 @@
 import io
 from typing import List
-import PIL
 from datasets.utils.file_utils import get_datasets_user_agent
 
 USER_AGENT = get_datasets_user_agent()
@@ -8,6 +7,7 @@ USER_AGENT = get_datasets_user_agent()
 
 def download_image(image_url: str, timeout: int = None, retries: int = 0):
     import urllib
+    from PIL import Image
 
     for _ in range(retries + 1):
         try:
@@ -17,12 +17,12 @@ def download_image(image_url: str, timeout: int = None, retries: int = 0):
                 headers={"user-agent": USER_AGENT},
             )
             with urllib.request.urlopen(request, timeout=timeout) as req:
-                image = PIL.Image.open(io.BytesIO(req.read()))
+                image = Image.open(io.BytesIO(req.read()))
             break
         except Exception as e:
             print(e)
             print(f"Failed to download an image from url: {image_url}.")
-            print("Set Image to None. Must remove it with a filter function.")
+            print("Set Image to None.")
             image = None
     return image
 

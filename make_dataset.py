@@ -8,7 +8,7 @@ SHARED_ROOT = "/root/model_cache"
 
 @stub.function(
     image=modal.Image.debian_slim().pip_install("datasets"),
-    shared_volumes={SHARED_ROOT: modal.SharedVolume.from_name(Config.shared_vol)},
+    shared_volumes={SHARED_ROOT: modal.SharedVolume().persist(Config.shared_vol)},
     retries=3,
     cpu=14,
     secret=modal.Secret.from_name("huggingface-secret"),
@@ -69,90 +69,96 @@ def make_splited_dataset(
 @stub.function(
     image=modal.Image.debian_slim().pip_install("Pillow", "datasets"),
     shared_volumes={SHARED_ROOT: modal.SharedVolume().persist("red-caps-vol")},
-    retries=3,
+    retries=0,
     cpu=1,
-    cloud="gcp",
+    # cloud="gcp",
     secret=modal.Secret.from_name("huggingface-secret"),
     timeout=86400,
 )
 def set_dataset_in_local(
-    dataset_path: str = "yuukicammy/red_caps",
+    from_dataset_path: str = "yuukicammy/red_caps",
+    to_dataset_path: str = "yuukicammy/red-caps-5k-01",
     dataset_name="5k-01",
     save_path: str = "red_caps",
     num_train: int = 3500,
     num_val: int = 500,
     num_test: int = 1000,
     save_to_hub: bool = True,
+    load_from_local: bool = True,
 ):
     import os
     from pathlib import Path
-    from datasets import load_dataset, Dataset, DatasetDict
+    from datasets import load_dataset, Dataset, DatasetDict, load_from_disk
 
-    cache_root = Path(SHARED_ROOT) / save_path / dataset_name
-    dataset = load_dataset(
-        dataset_path,
-        cache_dir=Path(SHARED_ROOT) / ".hf_cache",
-        num_proc=14,
-        use_auth_token=os.environ["HUGGINGFACE_TOKEN_READ"],
-    )
-
-    created_dataset = DatasetDict()
-    train_dict = {}
-    val_dict = {}
-    test_dict = {}
-
-    for split, num_examples in zip(
-        ["train", "val", "test"], [num_train, num_val, num_test]
-    ):
-        ds = dataset[split].shuffle(Config.seed)
-        cls_names = ds.info.features["subreddit"].names
-        for name in cls_names:
-            os.makedirs(
-                os.path.join(cache_root, "images", split, name),
-                exist_ok=True,
-            )
-        target_dict = (
-            train_dict
-            if split == "train"
-            else test_dict
-            if split == "test"
-            else val_dict
+    data_root = Path(SHARED_ROOT) / save_path / dataset_name
+    if load_from_local:
+        created_dataset = load_from_disk(str(data_root))
+    else:
+        dataset = load_dataset(
+            path=from_dataset_path,
+            cache_dir=Path(SHARED_ROOT) / ".hf_cache",
+            num_proc=14,
+            use_auth_token=os.environ["HUGGINGFACE_TOKEN_READ"],
         )
-        for k in ds.info.features.keys():
-            target_dict[k] = []
-        valid_count = 0
-        total_count = 0
-        while valid_count < num_examples:
-            item = ds[total_count]
-            total_count += 1
-            cls_name = cls_names[item["subreddit"]]
-            filepath = os.path.join(
-                cache_root,
-                "images",
-                split,
-                cls_name,
-                f"{item['image_id']}.jpg",
+
+        created_dataset = DatasetDict()
+        train_dict = {}
+        val_dict = {}
+        test_dict = {}
+
+        for split, num_examples in zip(
+            ["train", "val", "test"], [num_train, num_val, num_test]
+        ):
+            ds = dataset[split].shuffle(Config.seed)
+            cls_names = ds.info.features["subreddit"].names
+            for name in cls_names:
+                os.makedirs(
+                    os.path.join(data_root, "images", split, name),
+                    exist_ok=True,
+                )
+            target_dict = (
+                train_dict
+                if split == "train"
+                else test_dict
+                if split == "test"
+                else val_dict
             )
-            if not os.path.isfile(filepath):
-                image = utils.download_image(item["image_url"], timeout=300)
-                if image is None:
-                    total_count += 1
-                    continue
+            for k in ds.info.features.keys():
+                target_dict[k] = []
+            target_dict["subreddit_str"] = []
+            valid_count = 0
+            total_count = 0
+            while valid_count < num_examples:
+                item = ds[total_count]
+                total_count += 1
+                cls_name = cls_names[item["subreddit"]]
+                filepath = os.path.join(
+                    data_root,
+                    "images",
+                    split,
+                    cls_name,
+                    f"{item['image_id']}.jpg",
+                )
+                if not os.path.isfile(filepath):
+                    image = utils.download_image(item["image_url"], timeout=1)
+                    if image is None:
+                        total_count += 1
+                        continue
+                    image = image.convert("RGB")
+                    image.save(filepath)
                 valid_count += 1
-                image = image.convert("RGB")
-                image.save(filepath)
-            else:
-                valid_count += 1
-            for k in target_dict.keys():
-                target_dict[k] += [item[k]]
-            print(f"Done {filepath}")
-            total_count += 1
-        created_dataset[split] = Dataset.from_dict(target_dict)
-    print(created_dataset)
-    created_dataset.save_to_disk(cache_root)
+                for k in ds.info.features.keys():
+                    target_dict[k] += [item[k]]
+                target_dict["subreddit_str"] += [cls_names[item["subreddit"]]]
+                # print(f"Done {filepath}")
+                total_count += 1
+            created_dataset[split] = Dataset.from_dict(target_dict)
+        print(created_dataset)
+        created_dataset.save_to_disk(data_root)
     if save_to_hub:
+        created_dataset = created_dataset.remove_columns("crosspost_parents")
         created_dataset.push_to_hub(
-            dataset_path / dataset_name,
+            to_dataset_path,
             private=True,
             token=os.environ["HUGGINGFACE_TOKEN"],
         )

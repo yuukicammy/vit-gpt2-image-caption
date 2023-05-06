@@ -8,9 +8,7 @@ stub = modal.Stub(Config.project_name + "-tfboard-webapp")
 
 
 @stub.function(
-    image=modal.Image.debian_slim().pip_install(
-        "tensorboard",
-    ),
+    image=modal.Image.debian_slim().pip_install("tensorboardX", "tensorboard"),
     shared_volumes={SHARED_ROOT: modal.SharedVolume.from_name(Config.shared_vol)},
 )
 @modal.wsgi_app()
@@ -19,7 +17,7 @@ def tensorboard_app():
     import tensorboard
     from pathlib import Path
 
-    tfboard_log_root = Path(SHARED_ROOT) / Config.log_dir / "runs"
+    tfboard_log_root = Path(SHARED_ROOT) / Config.output_dir / "runs"
     tfboard_log_dir = tfboard_log_root
     if ONLY_LATEST_DIR:
         tfboard_log_dir = tfboard_log_root / search_latest_dir(tfboard_log_root)
