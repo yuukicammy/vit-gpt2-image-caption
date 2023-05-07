@@ -49,7 +49,7 @@ function Result({ callId, selectedFile }) {
   );
 }
 
-function Form({ onSubmit, onFileSelect, selectedFile }) {
+function Form({ onSubmit, onFileSelect, selectedFile, maxLength, onMaxLengthChange, numBeams, onNumBeamsChange }) {
   return (
     <form class="flex flex-col space-y-4 items-center">
       <div class="text-2xl font-semibold text-gray-700"> ViT-GPT2 Image Captioning </div>
@@ -63,6 +63,30 @@ function Form({ onSubmit, onFileSelect, selectedFile }) {
       {selectedFile ? (
         <img src={URL.createObjectURL(selectedFile)} class="h-[300px]" />
       ) : null}
+      <div className="flex justify-center items-center space-x-4">
+        <label htmlFor="max-length-slider">Max Length: {maxLength}</label>
+        <input
+          type="range"
+          id="max-length-slider"
+          name="max_length"
+          min="10"
+          max="500"
+          value={maxLength}
+          onChange={onMaxLengthChange}
+        />
+      </div>
+      <div className="flex justify-center items-center space-x-4">
+        <label htmlFor="num-beams-slider">Num Beams: {numBeams}</label>
+        <input
+          type="range"
+          id="num-beams-slider"
+          name="num_beams"
+          min="1"
+          max="20"
+          value={numBeams}
+          onChange={onNumBeamsChange}
+        />
+      </div>
       <div>
         <button
           type="button"
@@ -80,10 +104,14 @@ function Form({ onSubmit, onFileSelect, selectedFile }) {
 function App() {
   const [selectedFile, setSelectedFile] = React.useState();
   const [callId, setCallId] = React.useState();
+  const [maxLength, setMaxLength] = React.useState(50);
+  const [numBeams, setNumBeams] = React.useState(4);
 
   const handleSubmission = async () => {
     const formData = new FormData();
     formData.append("image", selectedFile);
+    formData.append("max_length", maxLength);
+    formData.append("num_beams", numBeams);
 
     const resp = await fetch("/parse", {
       method: "POST",
@@ -106,9 +134,13 @@ function App() {
               onSubmit={handleSubmission}
               onFileSelect={(e) => setSelectedFile(e.target.files[0])}
               selectedFile={selectedFile}
+              onMaxLengthChange={(e) => setMaxLength(e.target.value)}
+              maxLength={maxLength}
+              onNumBeamsChange={(e) => setNumBeams(e.target.value)}
+              numBeams={numBeams}
             />
           )}
-          {callId && <Result callId={callId} selectedFile={selectedFile} />}
+          {callId && <Result callId={callId} selectedFile={selectedFile} maxLength={maxLength} numBeams={numBeams} />}
         </main>
       </div>
     </div>

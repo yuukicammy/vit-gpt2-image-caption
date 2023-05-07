@@ -11,11 +11,14 @@ web_app = fastapi.FastAPI()
 
 @web_app.post("/parse")
 async def parse(request: fastapi.Request):
-    predict_step = Function.lookup("vit-gpt2-image-caption", "predict")
+    predict = Function.lookup("vit-gpt2-image-caption", "predict")
 
     form = await request.form()
     image = await form["image"].read()  # type: ignore
-    call = predict_step.spawn(image)
+    max_length = int(form["max_length"])
+    num_beams = int(form["num_beams"])
+
+    call = predict.spawn(image, max_length, num_beams)
     return {"call_id": call.object_id}
 
 

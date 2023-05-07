@@ -18,7 +18,7 @@ class Config:
     data_root = "red_caps/5k-01"
     # download_retries = 0
     # download_timeout = 100
-    # # dataload_num_workers = 3  # [1,4]
+    dataload_num_workers = 8  # [1,4]
 
     # num_val_examples = 320
     log_batch_size = 10
@@ -41,16 +41,19 @@ class Config:
         "logging_first_step": True,
         "seed": seed,
         "save_total_limit": 3,
-        "max_steps": 1000000,
+        "max_steps": 5000,
         "disable_tqdm": False,
-        "resume_from_checkpoint": False,
+        "resume_from_checkpoint": True,
         "remove_unused_columns": True,
         "lr_scheduler_type": "cosine_with_restarts",
         "optim": "adamw_torch",
         "push_to_hub": False,
+        "load_best_model_at_end": True,
         # "log_level": "debug",
-        # "dataloader_num_workers": dataload_num_workers,
+        "dataloader_num_workers": dataload_num_workers,
         # "hub_model_id": "yuukicammy/ViT-GPT2-Image-Caption",
         # "hub_private_repo": True,
         # "hub_strategy": "end",
+        "metric_for_best_model": "rougeL",
+        "greater_is_better": True,
     }

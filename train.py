@@ -23,6 +23,7 @@ docker_command = [
 stub = modal.Stub(
     Config.project_name + "-train",
     image=modal.Image.debian_slim()
+    .env({"TOKENIZERS_PARALLELISM": "false"})
     .pip_install(
         "Pillow",
         "tensorboardX",
@@ -45,7 +46,7 @@ SHARED_ROOT = "/root/model_cache"
 @stub.cls(
     gpu=modal.gpu.A10G(count=1),
     # cloud="gcp",
-    cpu=8,
+    cpu=14,
     shared_volumes={SHARED_ROOT: modal.SharedVolume.from_name(Config.shared_vol)},
     retries=0,
     secret=modal.Secret.from_name("huggingface-secret"),
@@ -178,7 +179,38 @@ class ImageCaptionTensorBoardCallback(transformers.integrations.TensorBoardCallb
         super().__init__(tf_writer)
         self.eval_dataloader = eval_dataloader
 
+    def on_train_begin(self, args, state, control, **kwargs):
+        super().on_train_begin(args, state, control, **kwargs)
+        if "model" in kwargs and "tokenizer" in kwargs:
+            self.logging_impl(
+                args=args,
+                state=state,
+                control=control,
+                model=kwargs["model"],
+                tokenizer=kwargs["tokenizer"],
+            )
+
     def on_log(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        model,
+        tokenizer,
+        logs=None,
+        **kwargs,
+    ):
+        super().on_log(args=args, state=state, control=control, logs=logs, **kwargs)
+        self.logging_impl(
+            args=args,
+            state=state,
+            control=control,
+            model=model,
+            tokenizer=tokenizer,
+            **kwargs,
+        )
+
+    def logging_impl(
         self,
         args: TrainingArguments,
         state: TrainerState,
@@ -236,7 +268,7 @@ class ImageCaptionTensorBoardCallback(transformers.integrations.TensorBoardCallb
 
                 axs[row, col].imshow(np.asarray(input["image"][i]))
                 axs[row, col].axis("off")
-                axs[row, col].set_title(f"{decoded_preds[i]}", fontsize=12)
+                axs[row, col].set_title(caption, fontsize=12)
         self.tb_writer.add_figure(
             tag="generated caption", figure=fig, global_step=state.global_step
         )

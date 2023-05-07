@@ -3,34 +3,49 @@
 import urllib.request
 import modal
 
-stub = modal.Stub("vit-gpt2-image-captioning")
-volume = modal.SharedVolume().persist("shared_vol")
+stub = modal.Stub("vit-gpt2-image-caption")
+volume = modal.SharedVolume.from_name("red-caps-vol")
+
 
 @stub.function(
     gpu="any",
     image=modal.Image.debian_slim().pip_install("Pillow", "transformers", "torch"),
     shared_volumes={"/root/model_cache": volume},
+    secret=modal.Secret.from_name("huggingface-secret"),
     retries=3,
 )
-def predict(image):
+def predict(image, max_length=64, num_beams=4):
     import io
+    import os
     from transformers import VisionEncoderDecoderModel, ViTImageProcessor, AutoTokenizer
     import torch
     from PIL import Image
 
     model = VisionEncoderDecoderModel.from_pretrained(
-        "nlpconnect/vit-gpt2-image-captioning"
+        pretrained_model_name_or_path="/root/model_cache/image-caption"
+        # pretrained_model_name_or_path="yuukicammy/image-caption",
+        # use_auth_token=os.environ["HUGGINGFACE_TOKEN"],
     )
     feature_extractor = ViTImageProcessor.from_pretrained(
-        "nlpconnect/vit-gpt2-image-captioning"
+        pretrained_model_name_or_path="nlpconnect/vit-gpt2-image-captioning"
+        # pretrained_model_name_or_path="yuukicammy/image-caption",
+        # use_auth_token=os.environ["HUGGINGFACE_TOKEN_READ"],
     )
-    tokenizer = AutoTokenizer.from_pretrained("nlpconnect/vit-gpt2-image-captioning")
+    tokenizer = AutoTokenizer.from_pretrained(
+        pretrained_model_name_or_path="/root/model_cache/image-caption"
+        # pretrained_model_name_or_path="yuukicammy/image-caption",
+        # use_auth_token=os.environ["HUGGINGFACE_TOKEN"],
+    )
+
+    if not isinstance(max_length, int):
+        max_length = int(max_length)
+
+    if not isinstance(num_beams, int):
+        num_beams = int(num_beams)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    max_length = 16
-    num_beams = 4
     gen_kwargs = {"max_length": max_length, "num_beams": num_beams}
     input_img = Image.open(io.BytesIO(image))
     pixel_values = feature_extractor(
@@ -48,6 +63,7 @@ def predict(image):
 @stub.local_entrypoint()
 def main():
     from pathlib import Path
+
     image_filepath = Path(__file__).parent / "sample.png"
     if image_filepath.exists():
         with open(image_filepath, "rb") as f:
