@@ -1,3 +1,8 @@
+""" Fine-tuning the model for image captioning. 
+
+MIT License
+Copyright (c) 2023 yuukicammy
+"""
 import modal
 import transformers
 from transformers import (
@@ -50,12 +55,12 @@ SHARED_ROOT = "/root/model_cache"
 @stub.cls(
     gpu=modal.gpu.A10G(count=1),
     # cloud="gcp",
-    cpu=14,
+    cpu=8,
     shared_volumes={SHARED_ROOT: modal.SharedVolume.from_name(Config.shared_vol)},
     retries=0,
     secret=modal.Secret.from_name("huggingface-secret"),
     interactive=False,
-    timeout=8000,
+    timeout=3600,
 )
 class FineTune:
     def __enter__(self):
@@ -297,20 +302,24 @@ class ImageCaptionTensorBoardCallback(transformers.integrations.TensorBoardCallb
         if n_images <= n_cols:
             for i in range(output_ids.shape[0]):
                 caption = insert_newlines(decoded_preds[i])
-                ann_caption = insert_newlines(input["ann_caption"][i])
+                ann_caption = "[annotation]\n" + insert_newlines(
+                    input["ann_caption"][i]
+                )
                 axs[i].imshow(np.asarray(input["image"][i]))
                 axs[i].axis("off")
                 axs[i].set_title(caption, fontsize=7)
-                axs[i].text(0, 0, ann_caption, fontsize=7, color="red")
+                axs[i].text(20, 0, ann_caption, fontsize=7, color="red")
         else:
             for i in range(output_ids.shape[0]):
                 row, col = i // n_cols, i % n_cols
                 caption = insert_newlines(decoded_preds[i])
-                ann_caption = insert_newlines(input["ann_caption"][i])
+                ann_caption = "[annotation]\n" + insert_newlines(
+                    input["ann_caption"][i]
+                )
                 axs[row, col].imshow(np.asarray(input["image"][i]))
                 axs[row, col].axis("off")
                 axs[row, col].set_title(caption, fontsize=7)
-                axs[row, col].text(0, 0, ann_caption, fontsize=7, color="red")
+                axs[row, col].text(20, 0, ann_caption, fontsize=7, color="red")
         self.tb_writer.add_figure(
             tag="generated caption", figure=fig, global_step=state.global_step
         )

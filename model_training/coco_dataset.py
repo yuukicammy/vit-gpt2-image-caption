@@ -1,7 +1,28 @@
+""" Download COCO dataset from the official repositories.
+MIT License
+Copyright (c) 2023 yuukicammy
+"""
 from torch.utils.data import Dataset
 
 
 class CocoDataset(Dataset):
+    """Download COCO dataset from the official repositories.
+
+    This class implements a PyTorch Dataset for the COCO dataset. It downloads the dataset from the official repositories and preprocesses the images and captions for training. The dataset contains images with corresponding captions.
+
+    Args:
+        split (str): The split to use for the dataset, either 'train' or 'val'.
+        dataset_path (str): The path to the COCO dataset on disk.
+        image_processor_pretrained (str): The name of the ViTImageProcessor model to use for preprocessing images.
+        tokenizer (obj): A tokenizer object to use for tokenizing captions.
+        max_length (int): The maximum length to truncate captions to.
+        seed (int, optional): The random seed to use for shuffling. Default is 42.
+        use_input (bool, optional): Whether to include the image and caption in the output. Default is False.
+
+    Returns:
+        dict: A dictionary containing the pixel values of the preprocessed image and the tokenized labels for the captions.
+    """
+
     def __init__(
         self,
         split: str,

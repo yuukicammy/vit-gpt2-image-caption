@@ -1,3 +1,8 @@
+""" Downloads a subset of images from the dataset.
+
+MIT License
+Copyright (c) 2023 yuukicammy
+"""
 import modal
 from datasets import Dataset
 from model_training.config import Config
@@ -23,18 +28,15 @@ def build_dataset_subset(
     num_test: int = 1000,
     push_hub_rep: str = None,
 ):
-    """
-    Downloads images from the specified Hugging Face dataset and saves them to a local folder. If the dataset has already been downloaded to the local folder, it can be loaded from disk
-    instead of being downloaded again.
+    """Downloads a subset of images from the dataset.
 
     Args:
-        from_dataset_path (str): The path of the Hugging Face dataset to download from.
-        to_dataset_path (str): The path to upload the dataset to on Hugging Face after it has been processed.
-        dataset_name (str): The name of the dataset being processed.
-        num_train (int): The number of training examples to download.
-        num_val (int): The number of validation examples to download.
-        num_test (int): The number of test examples to download.
-        save_to_hub (bool): Whether or not to save the processed dataset to Hugging Face.
+        from_dataset_path (str): The path to the dataset to be used as the source.
+        to_dataset_path (str): The path to save the downloaded subset dataset to.
+        num_train (int): The number of examples to include in the train split.
+        num_val (int): The number of examples to include in the validation split.
+        num_test (int): The number of examples to include in the test split.
+        push_hub_rep (str): If specified, pushes the created dataset to the specified Hugging Face Hub repository.
 
     Returns:
         None

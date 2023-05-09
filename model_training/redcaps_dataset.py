@@ -1,8 +1,13 @@
+""" RedCaps dataset <https://redcaps.xyz/>
+MIT License
+Copyright (c) 2023 yuukicammy
+"""
+
 from torch.utils.data import Dataset
 
 
 class RedCapsDataset(Dataset):
-    f"""Dataset class for RedCaps.
+    f"""Dataset class for RedCaps <https://redcaps.xyz/> .
 
     Args:
         split (str): The split to load from the dataset. train, val, or test.
@@ -12,7 +17,7 @@ class RedCapsDataset(Dataset):
         max_length (int): The maximum length of tokens for the captions.
         cache_root (str): The root path for caching data.
         seed (int, optional): The random seed. Defaults to 42.
-        use_image (bool, optional): Whether to use images in the returned dict. Defaults to False.
+        use_input (bool, optional): Whether to use the original images and captions in the returned dict. Defaults to False.
     """
 
     def __init__(

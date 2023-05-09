@@ -1,4 +1,5 @@
-""" Split the Hugging Face dataset into train, val, and test.
+""" Download COCO dataset <https://cocodataset.org> into the shared volume on Modal.
+
 MIT License
 Copyright (c) 2023 yuukicammy
 """
