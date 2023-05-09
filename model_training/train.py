@@ -296,33 +296,21 @@ class ImageCaptionTensorBoardCallback(transformers.integrations.TensorBoardCallb
         n_images = output_ids.shape[0]
         n_cols = 10
 
-        n_rows = n_images // n_cols
-        n_rows += 1 if n_images % n_cols != 0 else 0
-        fig, axs = plt.subplots(n_rows, n_cols, figsize=(20, 4 * n_rows))
+        n_rows = (n_images // n_cols) * 2
+        n_rows += 2 if n_images % n_cols != 0 else 0
+        fig, axs = plt.subplots(n_rows, n_cols, figsize=(40, 4 * n_rows))
         fig.subplots_adjust(wspace=0.2, hspace=0.4)
         fig.subplots_adjust(wspace=0.5)
 
-        if n_images <= n_cols:
-            for i in range(output_ids.shape[0]):
-                caption = insert_newlines(decoded_preds[i])
-                ann_caption = "[annotation]\n" + insert_newlines(
-                    input["ann_caption"][i]
-                )
-                axs[i].imshow(np.asarray(input["image"][i]))
-                axs[i].axis("off")
-                axs[i].set_title(caption, fontsize=7)
-                axs[i].text(20, 0, ann_caption, fontsize=7, color="red")
-        else:
-            for i in range(output_ids.shape[0]):
-                row, col = i // n_cols, i % n_cols
-                caption = insert_newlines(decoded_preds[i])
-                ann_caption = "[annotation]\n" + insert_newlines(
-                    input["ann_caption"][i]
-                )
-                axs[row, col].imshow(np.asarray(input["image"][i]))
-                axs[row, col].axis("off")
-                axs[row, col].set_title(caption, fontsize=7)
-                axs[row, col].text(20, 0, ann_caption, fontsize=7, color="red")
+        for i in range(output_ids.shape[0]):
+            row, col = (i // n_cols) * 2, i % n_cols
+            caption = insert_newlines(decoded_preds[i])
+            ann_caption = "[annotation]\n" + insert_newlines(input["ann_caption"][i])
+            axs[row, col].imshow(np.asarray(input["image"][i]))
+            axs[row, col].axis("off")
+            axs[row, col].set_title(caption, fontsize=7)
+            axs[row + 1, col].text(0, 0, ann_caption, fontsize=7, color="red")
+            axs[row + 1, col].axis("off")
         self.tb_writer.add_figure(
             tag="generated caption", figure=fig, global_step=state.global_step
         )
