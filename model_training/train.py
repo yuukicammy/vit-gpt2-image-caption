@@ -123,6 +123,7 @@ class FineTune:
                 tokenizer=self.tokenizer,
                 max_length=Config.max_target_length,
                 seed=Config.seed,
+                num_examples=Config.val_examples,
             )
             log_dataset = CocoDataset(
                 split="val",
@@ -132,6 +133,7 @@ class FineTune:
                 max_length=Config.max_target_length,
                 seed=Config.seed,
                 use_input=True,
+                num_examples=Config.val_examples,
             )
         else:
             train_dataset = RedCapsDataset(
@@ -183,7 +185,7 @@ class FineTune:
                 tensorboardX.SummaryWriter(self.logging_dir),
                 torch.utils.data.DataLoader(
                     log_dataset,
-                    batch_size=Config.log_batch_size,
+                    batch_size=Config.log_examples,
                     shuffle=True,
                 ),
             )

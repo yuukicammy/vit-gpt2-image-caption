@@ -13,11 +13,10 @@ class Config:
     ignore_pad_token_for_loss = True
     metric = "rouge"
 
-    # For Hugging Face Dataset
+    # For Dataset
     dataset_path = "coco"  # ["red-caps-5k-01", "coco"]
-    dataload_num_workers = 12
-
-    log_batch_size = 10
+    val_examples = 200  # only COCO
+    log_examples = 10
 
     # For Hugging Face Model
     image_processor_pretrained = "nlpconnect/vit-gpt2-image-captioning"
@@ -48,7 +47,7 @@ class Config:
         "optim": "adamw_torch",
         "load_best_model_at_end": True,
         # "log_level": "debug",
-        "dataloader_num_workers": dataload_num_workers,
+        "dataloader_num_workers": 12,
         "push_to_hub": False,
         "hub_model_id": "yuukicammy/vit-gpt2-image-caption",
         "hub_private_repo": True,

@@ -19,6 +19,7 @@ class CocoDataset(Dataset):
         max_length (int): The maximum length to truncate captions to.
         seed (int, optional): The random seed to use for shuffling. Default is 42.
         use_input (bool, optional): Whether to include the image and caption in the output. Default is False.
+        num_examples (int, optional): Number of data to be used. If None or more data than exists, all data will be used.
 
     Returns:
         dict: A dictionary containing the pixel values of the preprocessed image and the tokenized labels for the captions.
@@ -33,13 +34,16 @@ class CocoDataset(Dataset):
         max_length: int,
         seed: int = 42,
         use_input: bool = False,
+        num_examples: int = None,
     ):
         import random
         from pathlib import Path
+        import torch
         from transformers import ViTImageProcessor
         from torchvision.datasets import CocoCaptions
 
         random.seed(seed)
+        torch.manual_seed(seed)
 
         self.image_processor = ViTImageProcessor.from_pretrained(
             image_processor_pretrained
@@ -67,6 +71,11 @@ class CocoDataset(Dataset):
         self.use_input = use_input
         self.im_size = 256
 
+        if num_examples and num_examples < len(self.dataset):
+            self.dataset = torch.utils.data.random_split(
+                self.dataset, [num_examples, len(self.dataset) - num_examples]
+            )[0]
+
     def __len__(self):
         return len(self.dataset)
 
@@ -79,12 +88,13 @@ class CocoDataset(Dataset):
         pixel_values = self.image_processor(
             image, return_tensors="pt", data_format="channels_first"
         ).pixel_values.squeeze()  # ViTImageProcessor.preprocess() returns in batch format.
-        # print(pixel_values.shape)
+
         labels = self.tokenizer(
             captions[i],
             padding="max_length",
             max_length=self.max_length,
         ).input_ids
+
         if self.use_input:
             return {
                 "ann_caption": captions[i],
