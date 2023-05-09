@@ -1,4 +1,5 @@
 """ Download COCO dataset from the official repositories.
+
 MIT License
 Copyright (c) 2023 yuukicammy
 """
