@@ -202,11 +202,12 @@ class FineTune:
         import numpy as np
 
         preds, labels = eval_preds
-        if isinstance(preds, tuple):
-            preds = preds[0]
+
         if self.ignore_pad_token_for_loss:
             # Replace -100 in the labels as we can't decode them.
             labels = np.where(labels != -100, labels, self.tokenizer.pad_token_id)
+            preds = np.where(preds != -100, preds, self.tokenizer.pad_token_id)
+
         decoded_preds = self.decode(preds)
         decoded_labels = self.decode(labels)
         result = self.metric.compute(
