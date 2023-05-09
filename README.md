@@ -24,6 +24,8 @@ To run this program, please register an account with [Modal](https://modal.com/ 
 ### (1) Set the dataset on SharedVolume
 
 #### COCO (Recommended)
+
+Download coco dataset from the official repositores.
 ```shell
 $ modal run model_training/download_coco_dataset.py
 ```   
