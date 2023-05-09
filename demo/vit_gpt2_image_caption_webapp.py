@@ -1,8 +1,12 @@
-from pathlib import Path
+""" Web site for demonstration of image captioning runnning on Modal
 
+MIT License
+Copyright (c) 2023 yuukicammy
+"""
+
+from pathlib import Path
 import fastapi
 import fastapi.staticfiles
-
 from modal import Function, Mount, Stub, asgi_app
 
 stub = Stub("vit-gpt2-image-caption-webapp")
@@ -32,7 +36,7 @@ async def poll_results(call_id: str):
     except TimeoutError:
         return fastapi.responses.JSONResponse(content="", status_code=202)
 
-    return result[0]
+    return result
 
 
 assets_path = Path(__file__).parent / "frontend"

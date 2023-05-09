@@ -1,8 +1,20 @@
 from torch.utils.data import Dataset
-import utils
 
 
 class RedCapsDataset(Dataset):
+    f"""Dataset class for RedCaps.
+
+    Args:
+        split (str): The split to load from the dataset. train, val, or test.
+        dataset_path (str): The path to the dataset.
+        image_processor_pretrained (str): The name or path of the pre-trained image processor.
+        tokenizer: The tokenizer to use.
+        max_length (int): The maximum length of tokens for the captions.
+        cache_root (str): The root path for caching data.
+        seed (int, optional): The random seed. Defaults to 42.
+        use_image (bool, optional): Whether to use images in the returned dict. Defaults to False.
+    """
+
     def __init__(
         self,
         split: str,
@@ -11,15 +23,12 @@ class RedCapsDataset(Dataset):
         tokenizer,
         max_length: int,
         cache_root: str,
-        # download_retries: int = 0,
-        # download_timeout: int = 300,
         seed: int = 42,
-        # num_examples: int = None,
-        use_image: bool = False,
+        use_input: bool = False,
     ):
         import os
         from pathlib import Path
-        from datasets import load_dataset
+        from datasets import load_dataset, load_from_disk
         from transformers import ViTImageProcessor
 
         self.image_processor = ViTImageProcessor.from_pretrained(
@@ -30,28 +39,24 @@ class RedCapsDataset(Dataset):
 
         self.cache_root = cache_root
         self.split = split
+        self.dataset_path = dataset_path
 
-        self.hf_dataset = load_dataset(
-            dataset_path,
-            streaming=False,
-            use_auth_token=os.environ["HUGGINGFACE_TOKEN_READ"],
-            cache_dir=Path(cache_root) / ".hf_cache",
-            split=split,
-            keep_in_memory=True,
-            save_infos=True,
-            num_proc=8,
-        )
-        # self.download_retries = download_retries
-        # self.download_timeout = download_timeout
+        if os.path.exists(self.dataset_path):
+            self.hf_dataset = load_from_disk(self.dataset_path)[split]
+        else:
+            self.hf_dataset = load_dataset(
+                dataset_path,
+                streaming=False,
+                use_auth_token=os.environ["HUGGINGFACE_TOKEN_READ"],
+                cache_dir=cache_root,
+                split=split,
+                keep_in_memory=True,
+                save_infos=True,
+                num_proc=8,
+            )
         self.hf_dataset = self.hf_dataset.shuffle(seed=seed)
-
-        self.num_examples = self.hf_dataset.info.splits[split].num_examples
-        # (
-        #     num_examples
-        #     if num_examples
-        #     else self.hf_dataset.info.splits[split].num_examples
-        # )
-        self.use_image = use_image
+        self.num_examples = self.hf_dataset.num_rows
+        self.use_input = use_input
         self.im_size = 256
 
     def __len__(self):
@@ -65,8 +70,8 @@ class RedCapsDataset(Dataset):
         import numpy as np
 
         filepath = (
-            Path(self.cache_root)
-            / "red_caps/5k-01/images"
+            Path(self.dataset_path)
+            / "images"
             / self.split
             / metadata["subreddit_str"]
             / f"{metadata['image_id']}.jpg"
@@ -79,10 +84,13 @@ class RedCapsDataset(Dataset):
         ).pixel_values.squeeze()  # ViTImageProcessor.preprocess() returns in batch format.
         # print(pixel_values.shape)
         labels = self.tokenizer(
-            metadata["caption"], padding="max_length", max_length=self.max_length
+            metadata["caption"],
+            padding="max_length",
+            max_length=self.max_length,
         ).input_ids
-        if self.use_image:
+        if self.use_input:
             return {
+                "ann_caption": metadata["caption"],
                 "pixel_values": pixel_values,
                 "labels": labels,
                 "image": np.array(image.resize((self.im_size, self.im_size))),

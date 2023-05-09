@@ -41,8 +41,8 @@ function Result({ callId, selectedFile }) {
       <img src={URL.createObjectURL(selectedFile)} class="h-[300px]" />
       {!result && <Spinner config={{}} />}
       {result && (
-        <p class="w-[200px] p-4 bg-zinc-200 rounded-lg whitespace-pre-wrap text-xs font-mono">
-          {JSON.stringify(result, undefined, 1)}
+        <p class="w-[500px] p-4 bg-zinc-200 rounded-lg whitespace-pre-wrap text-xs font-mono">
+          {JSON.stringify(result[0], undefined, 1)}
         </p>
       )}
     </div>

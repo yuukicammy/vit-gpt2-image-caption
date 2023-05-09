@@ -1,5 +1,5 @@
 import modal
-from config import Config
+from model_training.config import Config
 
 SHARED_ROOT: str = "/root/model_cache"
 ONLY_LATEST_DIR: bool = True
@@ -17,10 +17,9 @@ def tensorboard_app():
     import tensorboard
     from pathlib import Path
 
-    tfboard_log_root = Path(SHARED_ROOT) / Config.output_dir / "runs"
-    tfboard_log_dir = tfboard_log_root
+    tfboard_log_dir = Path(SHARED_ROOT) / Config.output_dir / "runs"
     if ONLY_LATEST_DIR:
-        tfboard_log_dir = tfboard_log_root / search_latest_dir(tfboard_log_root)
+        tfboard_log_dir = tfboard_log_dir / search_latest_dir(tfboard_log_dir)
 
     board = tensorboard.program.TensorBoard()
     board.configure(logdir=str(tfboard_log_dir))
@@ -38,7 +37,6 @@ def tensorboard_app():
 def search_latest_dir(target_dir):
     import os
 
-    os.system("pwd")
     latest_dir = None
     latest_time = 0
     for dirname in os.listdir(target_dir):
@@ -49,8 +47,3 @@ def search_latest_dir(target_dir):
                 latest_dir = dirname
                 latest_time = ctime
     return latest_dir
-
-
-# @stub.local_entrypoint()
-# def main():
-#     tensorboard_app().call()

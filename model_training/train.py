@@ -6,12 +6,11 @@ from transformers import (
     TrainerControl,
 )
 
-from redcaps_dataset import RedCapsDataset
-from config import Config
+from model_training.redcaps_dataset import RedCapsDataset
+from model_training.config import Config
 
 docker_command = [
     "RUN apt-get update && apt-get install -y git",
-    #    "RUN pip uninstall datasets",
     # For using forked datasets
     "RUN git clone --branch add-fn-kwargs-to-iterable-map-and-filter https://github.com/yuukicammy/datasets.git",
     'RUN cd datasets && pip install -e ".[dev]"',
@@ -55,10 +54,14 @@ SHARED_ROOT = "/root/model_cache"
 )
 class FineTune:
     def __enter__(self):
+        import os
         import datetime
         from pathlib import Path
         import evaluate
-        from transformers import VisionEncoderDecoderModel, AutoTokenizer
+        from transformers import (
+            VisionEncoderDecoderModel,
+            AutoTokenizer,
+        )
 
         self.metric = evaluate.load(Config.metric)
         self.ignore_pad_token_for_loss = Config.ignore_pad_token_for_loss
@@ -77,24 +80,27 @@ class FineTune:
         now = datetime.datetime.now()
         formatted_date = now.strftime("%b%d_%H-%M-%S")
         self.logging_dir = self.output_dir / "runs" / f"{formatted_date}_modal"
-        # self.tb_writer = SummaryWriter(self.output_dir)
-        # self.tb_writer.add_hparams(Config.train_args)
+
+        if os.path.exists(Path(SHARED_ROOT) / Config.dataset_path):
+            self.dataset_path = Path(SHARED_ROOT) / Config.dataset_path
+        else:
+            self.dataset_path = Config.dataset_path
 
     @modal.method()
     def run(self):
+        import os
         from pathlib import Path
         from transformers import default_data_collator
         import tensorboardX
         import torch
         from transformers import Seq2SeqTrainer, Seq2SeqTrainingArguments
-        from config import Config
 
         print("start!")
 
         training_args = Seq2SeqTrainingArguments(
             output_dir=str(self.output_dir),
             logging_dir=str(self.logging_dir),
-            # hub_token=os.environ["HUGGINGFACE_TOKEN"],
+            hub_token=os.environ["HUGGINGFACE_TOKEN"],
             **Config.train_args,
         )
         # instantiate trainer
@@ -105,20 +111,20 @@ class FineTune:
             compute_metrics=self.compute_metrics,
             train_dataset=RedCapsDataset(
                 split="train",
-                dataset_path=Config.dataset_path,
+                dataset_path=self.dataset_path,
                 image_processor_pretrained=Config.image_processor_pretrained,
                 tokenizer=self.tokenizer,
                 max_length=Config.max_target_length,
-                cache_root=Path(SHARED_ROOT),
+                cache_root=Path(SHARED_ROOT) / ".hf_cache",
                 seed=Config.seed,
             ),
             eval_dataset=RedCapsDataset(
                 split="val",
-                dataset_path=Config.dataset_path,
+                dataset_path=self.dataset_path,
                 image_processor_pretrained=Config.image_processor_pretrained,
                 tokenizer=self.tokenizer,
                 max_length=Config.max_target_length,
-                cache_root=Path(SHARED_ROOT),
+                cache_root=Path(SHARED_ROOT) / ".hf_cache",
                 seed=Config.seed,
             ),
             data_collator=default_data_collator,
@@ -129,13 +135,13 @@ class FineTune:
                 torch.utils.data.DataLoader(
                     RedCapsDataset(
                         split="val",
-                        dataset_path=Config.dataset_path,
+                        dataset_path=self.dataset_path,
                         image_processor_pretrained=Config.image_processor_pretrained,
                         tokenizer=self.tokenizer,
                         max_length=Config.max_target_length,
-                        cache_root=Path(SHARED_ROOT),
+                        cache_root=Path(SHARED_ROOT) / ".hf_cache",
                         seed=Config.seed,
-                        use_image=True,
+                        use_input=True,
                     ),
                     batch_size=Config.log_batch_size,
                     shuffle=True,
@@ -225,7 +231,10 @@ class ImageCaptionTensorBoardCallback(transformers.integrations.TensorBoardCallb
 
         with torch.no_grad():
             input = next(iter(self.eval_dataloader))
-            gen_kwargs = {"max_length": 128, "num_beams": 4}
+            gen_kwargs = {
+                "max_length": Config.max_target_length,
+                "num_beams": Config.num_beams,
+            }
             output_ids = model.generate(input["pixel_values"].to("cuda"), **gen_kwargs)
             # print("Done forwarding.")
             # print(output_ids.shape)
@@ -242,7 +251,7 @@ class ImageCaptionTensorBoardCallback(transformers.integrations.TensorBoardCallb
         #     tag="embedding",
         # )
         n_images = output_ids.shape[0]
-        n_cols = 5
+        n_cols = 10
 
         n_rows = n_images // n_cols
         n_rows += 1 if n_images % n_cols != 0 else 0
@@ -250,28 +259,40 @@ class ImageCaptionTensorBoardCallback(transformers.integrations.TensorBoardCallb
         fig.subplots_adjust(wspace=0.2, hspace=0.4)
         fig.subplots_adjust(wspace=0.5)
 
-        if n_images < 5:
+        if n_images <= n_cols:
             for i in range(output_ids.shape[0]):
-                caption = ""
-                for j in range(0, len(decoded_preds[i]), 20):
-                    caption += decoded_preds[i][j : j + 20] + "\n"
-
+                caption = insert_newlines(decoded_preds[i])
+                ann_caption = insert_newlines(input["ann_caption"][i])
                 axs[i].imshow(np.asarray(input["image"][i]))
                 axs[i].axis("off")
-                axs[i].set_title(caption, fontsize=12)
+                axs[i].set_title(caption, fontsize=7)
+                axs[i].text(ann_caption, fontsize=7, color="red")
         else:
             for i in range(output_ids.shape[0]):
                 row, col = i // n_cols, i % n_cols
-                caption = ""
-                for j in range(0, len(decoded_preds[i]), 20):
-                    caption += decoded_preds[i][j : j + 20] + "\n"
-
+                caption = insert_newlines(decoded_preds[i])
+                ann_caption = insert_newlines(input["ann_caption"][i])
                 axs[row, col].imshow(np.asarray(input["image"][i]))
                 axs[row, col].axis("off")
-                axs[row, col].set_title(caption, fontsize=12)
+                axs[row, col].set_title(caption, fontsize=7)
+                axs[row, col].text(ann_caption, fontsize=7, color="red")
         self.tb_writer.add_figure(
             tag="generated caption", figure=fig, global_step=state.global_step
         )
+
+
+def insert_newlines(in_caption: str) -> str:
+    vocabs = in_caption.split()
+    n_line = 0
+    out_caption = ""
+    for vocab in vocabs:
+        if 30 < n_line + len(vocab):
+            out_caption += "\n" + vocab + " "
+            n_line = len(vocab) + 1
+        else:
+            out_caption += vocab + " "
+            n_line += len(vocab) + 1
+    return out_caption
 
 
 @stub.local_entrypoint()
