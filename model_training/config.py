@@ -5,7 +5,7 @@ from dataclasses import dataclass
 class Config:
     # For modal
     project_name = "vit-gpt2-image-caption"
-    shared_vol = "red-caps-vol"
+    shared_vol = "image-caption-vol"
     output_dir = "image-caption"
 
     seed = 42
@@ -14,7 +14,7 @@ class Config:
     metric = "rouge"
 
     # For Hugging Face Dataset
-    dataset_path = "red-caps-5k-01"
+    dataset_path = "coco"  # ["red-caps-5k-01", "coco"]
     dataload_num_workers = 12
 
     log_batch_size = 10

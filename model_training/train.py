@@ -6,6 +6,7 @@ from transformers import (
     TrainerControl,
 )
 
+from model_training.coco_dataset import CocoDataset
 from model_training.redcaps_dataset import RedCapsDataset
 from model_training.config import Config
 
@@ -17,6 +18,8 @@ docker_command = [
     # For Git Large File Storage
     "RUN curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash",
     "RUN apt-get install git-lfs && git lfs install",
+    # For COCO dataset
+    "RUN git clone https://github.com/cocodataset/cocoapi && cd cocoapi/PythonAPI && make",
 ]
 
 stub = modal.Stub(
@@ -36,6 +39,8 @@ stub = modal.Stub(
         "kornia",
         "matplotlib",
         "rouge_score",
+        "cython",
+        "pycocotools",
     )
     .dockerfile_commands(docker_command, force_build=False),
 )
@@ -97,6 +102,61 @@ class FineTune:
 
         print("start!")
 
+        if Config.dataset_path == "coco":
+            train_dataset = CocoDataset(
+                split="train",
+                dataset_path=self.dataset_path,
+                image_processor_pretrained=Config.image_processor_pretrained,
+                tokenizer=self.tokenizer,
+                max_length=Config.max_target_length,
+                seed=Config.seed,
+            )
+            val_dataset = CocoDataset(
+                split="val",
+                dataset_path=self.dataset_path,
+                image_processor_pretrained=Config.image_processor_pretrained,
+                tokenizer=self.tokenizer,
+                max_length=Config.max_target_length,
+                seed=Config.seed,
+            )
+            log_dataset = CocoDataset(
+                split="val",
+                dataset_path=self.dataset_path,
+                image_processor_pretrained=Config.image_processor_pretrained,
+                tokenizer=self.tokenizer,
+                max_length=Config.max_target_length,
+                seed=Config.seed,
+                use_input=True,
+            )
+        else:
+            train_dataset = RedCapsDataset(
+                split="train",
+                dataset_path=self.dataset_path,
+                image_processor_pretrained=Config.image_processor_pretrained,
+                tokenizer=self.tokenizer,
+                max_length=Config.max_target_length,
+                cache_root=Path(SHARED_ROOT) / ".hf_cache",
+                seed=Config.seed,
+            )
+            val_dataset = RedCapsDataset(
+                split="val",
+                dataset_path=self.dataset_path,
+                image_processor_pretrained=Config.image_processor_pretrained,
+                tokenizer=self.tokenizer,
+                max_length=Config.max_target_length,
+                cache_root=Path(SHARED_ROOT) / ".hf_cache",
+                seed=Config.seed,
+            )
+            log_dataset = RedCapsDataset(
+                split="val",
+                dataset_path=self.dataset_path,
+                image_processor_pretrained=Config.image_processor_pretrained,
+                tokenizer=self.tokenizer,
+                max_length=Config.max_target_length,
+                cache_root=Path(SHARED_ROOT) / ".hf_cache",
+                seed=Config.seed,
+                use_input=True,
+            )
         training_args = Seq2SeqTrainingArguments(
             output_dir=str(self.output_dir),
             logging_dir=str(self.logging_dir),
@@ -109,40 +169,15 @@ class FineTune:
             tokenizer=self.tokenizer,
             args=training_args,
             compute_metrics=self.compute_metrics,
-            train_dataset=RedCapsDataset(
-                split="train",
-                dataset_path=self.dataset_path,
-                image_processor_pretrained=Config.image_processor_pretrained,
-                tokenizer=self.tokenizer,
-                max_length=Config.max_target_length,
-                cache_root=Path(SHARED_ROOT) / ".hf_cache",
-                seed=Config.seed,
-            ),
-            eval_dataset=RedCapsDataset(
-                split="val",
-                dataset_path=self.dataset_path,
-                image_processor_pretrained=Config.image_processor_pretrained,
-                tokenizer=self.tokenizer,
-                max_length=Config.max_target_length,
-                cache_root=Path(SHARED_ROOT) / ".hf_cache",
-                seed=Config.seed,
-            ),
+            train_dataset=train_dataset,
+            eval_dataset=val_dataset,
             data_collator=default_data_collator,
         )
         self.trainer.add_callback(
             ImageCaptionTensorBoardCallback(
                 tensorboardX.SummaryWriter(self.logging_dir),
                 torch.utils.data.DataLoader(
-                    RedCapsDataset(
-                        split="val",
-                        dataset_path=self.dataset_path,
-                        image_processor_pretrained=Config.image_processor_pretrained,
-                        tokenizer=self.tokenizer,
-                        max_length=Config.max_target_length,
-                        cache_root=Path(SHARED_ROOT) / ".hf_cache",
-                        seed=Config.seed,
-                        use_input=True,
-                    ),
+                    log_dataset,
                     batch_size=Config.log_batch_size,
                     shuffle=True,
                 ),
@@ -266,7 +301,7 @@ class ImageCaptionTensorBoardCallback(transformers.integrations.TensorBoardCallb
                 axs[i].imshow(np.asarray(input["image"][i]))
                 axs[i].axis("off")
                 axs[i].set_title(caption, fontsize=7)
-                axs[i].text(ann_caption, fontsize=7, color="red")
+                axs[i].text(0, 0, ann_caption, fontsize=7, color="red")
         else:
             for i in range(output_ids.shape[0]):
                 row, col = i // n_cols, i % n_cols
@@ -275,7 +310,7 @@ class ImageCaptionTensorBoardCallback(transformers.integrations.TensorBoardCallb
                 axs[row, col].imshow(np.asarray(input["image"][i]))
                 axs[row, col].axis("off")
                 axs[row, col].set_title(caption, fontsize=7)
-                axs[row, col].text(ann_caption, fontsize=7, color="red")
+                axs[row, col].text(0, 0, ann_caption, fontsize=7, color="red")
         self.tb_writer.add_figure(
             tag="generated caption", figure=fig, global_step=state.global_step
         )

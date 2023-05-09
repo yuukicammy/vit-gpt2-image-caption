@@ -1,7 +1,7 @@
 # Image captioning with ViT and GPT-2 from learning to demonstration on Modal
 
 ## About
-This repository provides programs to (1) fine-tune a model for image captioning with ViT and GPT2 on the [RedCaps](https://redcaps.xyz/) dataset and (2) demonstrate  image captioning with the learned models.
+This repository provides programs to (1) fine-tune a model for image captioning with ViT and GPT2 and (2) demonstrate  image captioning with the learned models.
 
 ## What is Modal
 [Modal](https://modal.com/ ) builds amazing infrastructure for data/ML apps in the cloud.
@@ -15,12 +15,34 @@ To run this program, please register an account with [Modal](https://modal.com/ 
 
 - Base model: [nlpconnect/vit-gpt2-image-captioning](https://huggingface.co/nlpconnect/vit-gpt2-image-captioning )
 
-- Dataset for fine-tuning: [RedCaps](https://huggingface.co/datasets/red_caps )
+- Dataset for fine-tuning: 
+   - [COCO](https://cocodataset.org/#home )
+   - [RedCaps](https://huggingface.co/datasets/red_caps )
 
 ## How to use
 
-### Set the dataset on SharedVolume
+### (1) Set the dataset on SharedVolume
 
+#### COCO (Recommended)
+```shell
+$ modal run model_training/download_coco_dataset.py
+```   
+
+Check the shared volume.
+```shell
+$ modal volume ls image-caption-vol /coco
+
+Directory listing of 'coco' in 'image-caption-vol'
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━┓
+┃ filename                     ┃ type ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━┩
+│ train2017                    │ dir  │
+│ annotations                  │ dir  │
+│ val2017                      │ dir  │
+└──────────────────────────────┴──────┘
+```
+
+#### RedCaps
 1. Split the [RedCaps](https://huggingface.co/datasets/red_caps ) dataset into training, validation, and testing, then save them into SharedVolume and/or your Hugging Face repository.   
 
 ```shell
@@ -28,9 +50,9 @@ $ modal run model_training/split_dataset.py --save-dir=red_caps --push-hub-rep=[
 ```   
 Check the shared volume.   
 ```shell
-$ modal volume ls red-caps-vol /red_caps
+$ modal volume ls image-caption-vol /red_caps
 
-Directory listing of '/red_caps' in 'red-caps-vol'
+Directory listing of '/red_caps' in 'image-caption-vol'
 ┏━━━━━━━━━━━━━━━━━━━┳━━━━━━┓
 ┃ filename          ┃ type ┃
 ┡━━━━━━━━━━━━━━━━━━━╇━━━━━━┩
@@ -47,7 +69,7 @@ Directory listing of '/red_caps' in 'red-caps-vol'
 $ modal run model_training/build_dataset_subset.py --from-dataset-path=red_caps \ --to-dataset-path=red-caps-5k-01 --num-train=3500 --num-val=500 --num-test=1000
 ```   
 
-### Fine-tuning
+### (2) Fine-tuning
 
 1. Start the training.
 ```shell
@@ -64,7 +86,7 @@ Access the URL displayed as "Created tensorboard_app => https://XXXXXX.modal.run
 TensorBoard screen
 </center>
 
-### Demonstration
+### (3) Demonstration
 
 1. Deploy the functions.
 ```shell
@@ -73,6 +95,4 @@ $ modal deploy demo/vit_gpt2_image_caption_webapp.py
 ```
 "Created wrapper => https://[YOUR_ACCOUNT]--vit-gpt2-image-caption-webapp-wrapper.modal.run"
 
-3. Open the website.
-
-2. Try the demo.
+3. Open the website and try the demo.
