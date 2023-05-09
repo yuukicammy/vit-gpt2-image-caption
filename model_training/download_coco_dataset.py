@@ -21,10 +21,10 @@ docker_command = [
     .pip_install("torchvision", "cython")
     .dockerfile_commands(docker_command),
     shared_volumes={SHARED_ROOT: modal.SharedVolume().persist(Config.shared_vol)},
-    retries=3,
+    retries=0,
     cpu=2,
     secret=modal.Secret.from_name("huggingface-secret"),
-    timeout=3600,
+    timeout=36000,
 )
 def download_coco_dataset() -> None:
     import os
@@ -34,23 +34,23 @@ def download_coco_dataset() -> None:
 
     dataset_root = Path(SHARED_ROOT) / "coco"
     os.makedirs(dataset_root, exist_ok=True)
-    download_targetd = [
+    download_targets = [
         {
             "url": "http://images.cocodataset.org/zips/train2017.zip",
-            "save_path": f"{dataset_root}/train2017.zip",
+            "save_path": dataset_root / "train2017.zip",
         },
         {
             "url": "http://images.cocodataset.org/zips/val2017.zip",
-            "save_path": f"{dataset_root}/val2017.zip",
+            "save_path": dataset_root / "val2017.zip",
         },
         {
             "url": "http://images.cocodataset.org/annotations/annotations_trainval2017.zip",
-            "save_path": f"{dataset_root}/annotations_trainval2017.zip",
+            "save_path": dataset_root / "annotations_trainval2017.zip",
         },
     ]
     try:
         jobs = []
-        for target in download_targetd:
+        for target in download_targets:
             p = multiprocessing.Process(
                 target=download_and_extract_archive,
                 args=(
