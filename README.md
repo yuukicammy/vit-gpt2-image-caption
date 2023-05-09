@@ -25,7 +25,8 @@ To run this program, please register an account with [Modal](https://modal.com/ 
 
 #### COCO (Recommended)
 
-Download coco dataset from the official repositores.
+Download coco dataset from the official repositores to a shared volume on Modal.   
+The name of the shared volume is specified in `model_training/config.py` (default: `image-caption-vol`).
 ```shell
 $ modal run model_training/download_coco_dataset.py
 ```   
@@ -46,6 +47,7 @@ Directory listing of 'coco' in 'image-caption-vol'
 
 #### RedCaps
 1. Split the [RedCaps](https://huggingface.co/datasets/red_caps ) dataset into training, validation, and testing, then save them into SharedVolume and/or your Hugging Face repository.   
+The name of the shared volume is specified in `model_training/config.py` (default: `image-caption-vol`).
 
 ```shell
 $ modal run model_training/split_dataset.py --save-dir=red_caps --push-hub-rep=[YOUR-HF-ACCOUNT]/red_caps
@@ -65,7 +67,7 @@ Directory listing of '/red_caps' in 'image-caption-vol'
 └───────────────────┴──────┘
 ```
 
-2. Build a subset of the dataset on Modal SharedVolume
+2. Build a subset of the dataset the shared volume on Modal.
 
 ```shell
 $ modal run model_training/build_dataset_subset.py --from-dataset-path=red_caps \ --to-dataset-path=red-caps-5k-01 --num-train=3500 --num-val=500 --num-test=1000
@@ -73,7 +75,8 @@ $ modal run model_training/build_dataset_subset.py --from-dataset-path=red_caps 
 
 ### (2) Fine-tuning
 
-1. Start the training.
+1. Start the training on Modal.   
+The default stab name is `vit-gpt2-image-caption-train`. Machine usage (e.g. GPU memory in use) is available at https://modal.com/apps.
 ```shell
 $ modal run model_training/train.py 
 ```
