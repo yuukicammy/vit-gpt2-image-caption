@@ -16,7 +16,7 @@ To run this program, please register an account with [Modal](https://modal.com/ 
 - Base model: [nlpconnect/vit-gpt2-image-captioning](https://huggingface.co/nlpconnect/vit-gpt2-image-captioning )
 
 - Dataset for fine-tuning: 
-   - [COCO](https://cocodataset.org/#home )
+   - [COCO](https://cocodataset.org/#home ) (Recommended)
    - [RedCaps](https://huggingface.co/datasets/red_caps )
 
 ## How to use
@@ -81,10 +81,10 @@ $ modal run model_training/train.py
 $ modal deploy model_training/tfboard_webapp.py 
 ```
 Access the URL displayed as "Created tensorboard_app => https://XXXXXX.modal.run" to open the TensorBoard.
-<center>
-<img src="./img/tfimage.png" alt= “tensorboard-screen” width="400"></br>
+<p align="center">
+<img src="./img/tfboard_screen.png" alt= “tensorboard-screen” width="400"></br>
 TensorBoard screen
-</center>
+</p>
 
 ### (3) Demonstration
 
@@ -93,6 +93,15 @@ TensorBoard screen
 $ modal deploy demo/vit_gpt2_image_caption.py
 $ modal deploy demo/vit_gpt2_image_caption_webapp.py 
 ```
+
+2. Open the website and try the demo.
+
 "Created wrapper => https://[YOUR_ACCOUNT]--vit-gpt2-image-caption-webapp-wrapper.modal.run"
 
-3. Open the website and try the demo.
+<p align="center">
+<img src="./img/demo_screen.png" alt= “tensorboard-screen” width="400"></br>
+TensorBoard screen
+</p>
+
+
+
