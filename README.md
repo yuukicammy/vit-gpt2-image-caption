@@ -108,7 +108,7 @@ $ modal deploy demo/vit_gpt2_image_caption_webapp.py
 Demo website screen
 </p>
 
-(My demo website is here.)[https://yuukicammy--vit-gpt2-image-caption-webapp-wrapper.modal.run/]
+[My demo website is here.](https://yuukicammy--vit-gpt2-image-caption-webapp-wrapper.modal.run/)
 
 
 
