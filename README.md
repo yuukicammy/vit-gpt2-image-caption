@@ -90,7 +90,7 @@ TensorBoard screen
 
 ### (3) Demonstration
 
-1. Deploy the functions.
+1. Deploy the web endpoints for the demo.
 ```shell
 $ modal deploy demo/vit_gpt2_image_caption.py
 $ modal deploy demo/vit_gpt2_image_caption_webapp.py 
