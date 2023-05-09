@@ -4,11 +4,10 @@ MIT License
 Copyright (c) 2023 yuukicammy
 """
 from typing import Union
-import urllib.request
 import modal
 
 stub = modal.Stub("vit-gpt2-image-caption")
-volume = modal.SharedVolume.from_name("red-caps-vol")
+volume = modal.SharedVolume.from_name("image-caption-vol")
 
 docker_command = [
     "RUN apt-get update && apt-get install -y git",
@@ -46,6 +45,12 @@ def predict(
     from PIL import Image
 
     latest_checkpoint = search_latest_checkpoint("/root/model_cache/image-caption")
+    if latest_checkpoint is None:
+        print(
+            f"Pretrained model does not exist in /image-caption for the shared volume: `image-caption-vol` ."
+        )
+        return ["Error! Cannot find model to generate caption."]
+
     print(f"latest_checkpoint: {latest_checkpoint}")
 
     model = VisionEncoderDecoderModel.from_pretrained(
@@ -102,6 +107,7 @@ def search_latest_checkpoint(target_dir):
 
 @stub.local_entrypoint()
 def main():
+    import requests
     from pathlib import Path
 
     image_filepath = Path(__file__).parent / "sample.png"
@@ -110,9 +116,11 @@ def main():
             image = f.read()
     else:
         try:
-            image = urllib.request.urlopen(
-                "https://drive.google.com/uc?id=0B0TjveMhQDhgLTlpOENiOTZ6Y00&export=download"
-            ).read()
-        except urllib.error.URLError as e:
-            print(e.reason)
+            image = requests.get(
+                "https://drive.google.com/uc?id=0B0TjveMhQDhgLTlpOENiOTZ6Y00&export=download",
+                # "https://drive.google.com/uc?id=1M5Z0LqieL5Jem_WyjlQ0-HnG048WYMk5&export=download",
+                timeout=360,
+            ).content
+        except Exception as e:
+            print(e)
     print(predict.call(image)[0])
