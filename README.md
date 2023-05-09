@@ -102,7 +102,7 @@ $ modal deploy demo/vit_gpt2_image_caption_webapp.py
 
 <p align="center">
 <img src="./img/demo_screen.png" alt= “tensorboard-screen” width="400"></br>
-TensorBoard screen
+Demo website screen
 </p>
 
 
