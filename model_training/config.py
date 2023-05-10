@@ -22,7 +22,7 @@ class Config:
     image_processor_pretrained = "nlpconnect/vit-gpt2-image-captioning"
     tokenizer_pretrained = "nlpconnect/vit-gpt2-image-captioning"
     encoder_decoder_pretrained = "nlpconnect/vit-gpt2-image-captioning"
-    max_target_length = 80
+    max_target_length = 128
     num_beams = 8
 
     train_args = {
@@ -30,9 +30,9 @@ class Config:
         "evaluation_strategy": "steps",
         "per_device_train_batch_size": 32,
         "per_device_eval_batch_size": 64,
-        "eval_steps": 10,
+        "eval_steps": 100,
         "save_steps": 500,
-        "logging_steps": 10,
+        "logging_steps": 100,
         "learning_rate": 3e-5,
         "logging_first_step": True,
         "generation_max_length": max_target_length,

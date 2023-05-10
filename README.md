@@ -21,7 +21,7 @@ To run this program, please register an account with [Modal](https://modal.com/ 
 
 ## How to use
 
-### (1) Set the dataset on SharedVolume
+### (0) Set the dataset on SharedVolume for fine-tuning
 
 #### COCO (Recommended)
 
@@ -73,7 +73,7 @@ Directory listing of '/red_caps' in 'image-caption-vol'
 $ modal run model_training/build_dataset_subset.py --from-dataset-path=red_caps \ --to-dataset-path=red-caps-5k-01 --num-train=3500 --num-val=500 --num-test=1000
 ```   
 
-### (2) Fine-tuning
+### (1) Fine-tuning
 
 1. Start the training on Modal.   
 The default stab name is `vit-gpt2-image-caption-train`. Machine usage (e.g. GPU memory in use) is available at https://modal.com/apps.
@@ -91,7 +91,7 @@ Access the URL displayed as "Created tensorboard_app => https://XXXXXX.modal.run
 TensorBoard screen
 </p>
 
-### (3) Demonstration
+### (2) Demonstration
 
 1. Deploy the web endpoints for the demo.
 ```shell

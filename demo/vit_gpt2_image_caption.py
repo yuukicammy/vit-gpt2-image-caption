@@ -65,6 +65,10 @@ def predict(
         pretrained_model_name_or_path="/root/model_cache/image-caption/"
         + latest_checkpoint,
     )
+    tokenizer.pad_token = tokenizer.eos_token
+    model.config.eos_token_id = tokenizer.eos_token_id
+    model.config.decoder_start_token_id = tokenizer.bos_token_id
+    model.config.pad_token_id = tokenizer.pad_token_id
 
     if not isinstance(max_length, int):
         max_length = int(max_length)

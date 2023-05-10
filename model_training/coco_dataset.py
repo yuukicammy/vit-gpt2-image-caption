@@ -83,21 +83,27 @@ class CocoDataset(Dataset):
         import random
         import numpy as np
 
-        i = random.randint(0, 4)
         image, captions = self.dataset[idx]
         pixel_values = self.image_processor(
             image, return_tensors="pt", data_format="channels_first"
         ).pixel_values.squeeze()  # ViTImageProcessor.preprocess() returns in batch format.
 
+        i = random.randint(0, 4)
+        caption = (
+            captions[i]
+            if len(captions[i]) < self.max_length
+            else min(captions, key=len)
+        )
+
         labels = self.tokenizer(
-            captions[i],
+            caption,
             padding="max_length",
             max_length=self.max_length,
         ).input_ids
 
         if self.use_input:
             return {
-                "ann_caption": captions[i],
+                "ann_caption": caption,
                 "pixel_values": pixel_values,
                 "labels": labels,
                 "image": np.array(image.resize((self.im_size, self.im_size))),

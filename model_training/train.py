@@ -298,9 +298,8 @@ class ImageCaptionTensorBoardCallback(transformers.integrations.TensorBoardCallb
 
         n_rows = (n_images // n_cols) * 2
         n_rows += 2 if n_images % n_cols != 0 else 0
-        fig, axs = plt.subplots(n_rows, n_cols, figsize=(40, 4 * n_rows))
-        fig.subplots_adjust(wspace=0.2, hspace=0.4)
-        fig.subplots_adjust(wspace=0.5)
+        fig, axs = plt.subplots(n_rows, n_cols, figsize=(20, 2 * n_rows))
+        fig.subplots_adjust(wspace=0.5, hspace=0)
 
         for i in range(output_ids.shape[0]):
             row, col = (i // n_cols) * 2, i % n_cols
@@ -308,8 +307,8 @@ class ImageCaptionTensorBoardCallback(transformers.integrations.TensorBoardCallb
             ann_caption = "[annotation]\n" + insert_newlines(input["ann_caption"][i])
             axs[row, col].imshow(np.asarray(input["image"][i]))
             axs[row, col].axis("off")
-            axs[row, col].set_title(caption, fontsize=7)
-            axs[row + 1, col].text(0, 0, ann_caption, fontsize=7, color="red")
+            axs[row, col].set_title(caption, fontsize=10)
+            axs[row + 1, col].text(0, 0, ann_caption, fontsize=10, color="red")
             axs[row + 1, col].axis("off")
         self.tb_writer.add_figure(
             tag="generated caption", figure=fig, global_step=state.global_step
@@ -321,7 +320,7 @@ def insert_newlines(in_caption: str) -> str:
     n_line = 0
     out_caption = ""
     for vocab in vocabs:
-        if 30 < n_line + len(vocab):
+        if 20 < n_line + len(vocab):
             out_caption += "\n" + vocab + " "
             n_line = len(vocab) + 1
         else:
